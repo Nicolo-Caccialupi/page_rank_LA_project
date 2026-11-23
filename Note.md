@@ -1,321 +1,177 @@
-### Dangling-Node Correction and Stochasticity Verification
-
-Damping parameter(阻尼系数)
-stochasticity(随机性)
-Dangling Nodes（悬挂节点）
-
-
-#### Dangling Node
-
-**without any Outgoing Links(出链)**
+Dangling-Node Correction and Stochasticity Verification
+Key terms
+- Damping parameter (阻尼系数): Used in the full PageRank model; it is not required for the dangling-node correction discussed below.
+- Stochasticity (随机性): The property that transition probabilities are nonnegative and sum to 1.
+- Dangling node (悬挂节点): A node without any outgoing links.
+1. Dangling Nodes
+A dangling node is a page without any outgoing links.
 
 Example:
-![1a3c83c7628f7ca6bb1552ed8d219a26](https://i.mji.rip/2026/11/22/0ab114f3b93ab530d1b37093168e6207.png)
 
-
-
-for normal page, we can calculate it's transfer probability:
-
-```math
-P_{ij}=
+For a normal (non-dangling) page, its transition probabilities are:
+\[
+P_{ij} =
 \begin{cases}
-\frac{1}{d_j^{out}} & \text{if page }j\text{ to }i\\
-0 & \text{else}
+\dfrac{1}{d_j^{\mathrm{out}}}, & \text{if there is a link from page }j\text{ to page }i,\\
+0, & \text{otherwise.}
 \end{cases}
-```
+\]
+Here, $d_j^{\mathrm{out}}$ is the out-degree of node $j$ (the number of outgoing links from $j$).
+- Page A has two outgoing links, so the probability of moving from A to B or C is $1/2$ for each.
+- Page C has no outgoing links, so the entire column corresponding to C is zero before correction.
+Column-Stochastic Convention（列随机约定）
+For PageRank, we use a column-stochastic transition matrix. Each column represents the probabilities of leaving a source node, and every column must sum to 1:
+\[
+P_{ij}\ge 0, \qquad \sum_{i=1}^{n} P_{ij}=1 \quad \text{for all } j.
+\]
+State transition matrix（状态转移矩阵）: For $n$ possible states, the transition matrix has shape $n\times n$. Under this convention, $P_{ij}$ is the probability of moving from state $j$ to state $i$ in one step.
 
+Markov chain（马尔可夫链）: The probability distribution of the next state depends only on the current state, not on the full history of previous states.
+How a Transition Matrix Acts on a PageRank Vector
+Let $x$ be an $n\times1$ probability vector. Its next-step distribution is $Px$. For a column-stochastic matrix $P$:
+\[
+\mathbf{1}^{T}(Px)=\mathbf{1}^{T}x.
+\]
+This means that multiplying by $P$ preserves the total probability.
+2. Problem: A Dangling Column
+For the example graph, before dangling-node correction the transition matrix is:
+\[
+S=\begin{bmatrix}
+0 & 0 & 0\\
+\frac{1}{2} & 0 & 0\\
+\frac{1}{2} & 1 & 0
+\end{bmatrix}.
+\]
+Check the column sums:
+- Column A: $0+0.5+0.5=1$.
+- Column B: $0+0+1=1$.
+- Column C: $0+0+0=0$.
+Column C does not sum to 1. After arriving at C, the matrix does not specify a valid next-step probability distribution.
 
-```math
-d_j^{out} \text{ is the Out-degree of j}
-```
+Therefore, $S$ is not column-stochastic; it is column-substochastic (all entries are nonnegative, and each column sums to at most 1).
+3. Fixing the Dangling-Node Problem
+A basic correction is to replace every dangling column with a probability vector. With uniform personalization over three nodes:
+\[
+v=\begin{bmatrix}
+\frac{1}{3}\\
+\frac{1}{3}\\
+\frac{1}{3}
+\end{bmatrix}.
+\]
+The corrected transition matrix becomes:
+\[
+P=\begin{bmatrix}
+0 & 0 & \frac{1}{3}\\
+\frac{1}{2} & 0 & \frac{1}{3}\\
+\frac{1}{2} & 1 & \frac{1}{3}
+\end{bmatrix}.
+\]
+However, in a graph with many nodes, explicitly filling dangling columns creates many extra nonzero matrix entries. That can destroy the memory advantage of a sparse matrix.
 
-A has two Outgoing Links, so the probability that A transform to B and C is 0.5 in individual.
+The project therefore requires correcting dangling nodes without forming dense rank-one matrices.
+Dangling Indicator Vector
+Define $d\in\mathbb{R}^n$ so that $d_j=1$ if node $j$ is dangling, and $d_j=0$ otherwise.
 
-C doesn't has any Outgoing Links, so the whole column which it corresponded is 0.
+For this example:
+\[
+d=\begin{bmatrix}0\\0\\1\end{bmatrix}.
+\]
+The corrected matrix can be written mathematically as:
+\[
+\boxed{P=S+vd^{T}}
+\]
+The outer product $vd^{T}$ replaces each dangling column with $v$. We do not construct this outer product explicitly.
 
-**Column-Stochastic Convention**
-在构建++状态转移矩阵++（如马尔可夫链、PageRank 算法）时，规定矩阵的每一列元素之和等于 1（且所有元素非负）
+For any vector $x\in\mathbb{R}^n$, compute the product implicitly:
+\[
+\begin{aligned}
+Px &= (S+vd^{T})x\\
+   &= Sx+(vd^{T})x\\
+   &= \boxed{Sx+v(d^{T}x)}.
+\end{aligned}
+\]
+Why this is efficient:
+- $Sx$ is a sparse matrix-vector product.
+- $d^{T}x$ is a scalar: the total probability currently assigned to dangling nodes.
+- $v(d^{T}x)$ distributes that probability according to the personalization vector.
+Only the sparse matrix $S$ and the vectors $d$, $v$, and $x$ are needed.
+4. Steps to Construct the Sparse Transition Matrix
+Step 1: Build the Adjacency Matrix
+Use a sparse format such as COO to construct the adjacency matrix $A$.
 
-
-**状态转移矩阵（State Transition Matrix，通常记为 P 或 M）**
-
-是用来描述一个系统在不同状态之间切换概率的二维数字表格，是马尔可夫链（Markov Chain）的核心工具。
-
-矩阵结构： 有n个可能状态，状态转移矩阵就是一个nxn的矩阵
-矩阵中的元素代表：从某个状态经过一步操作之后得到另一个状态的概率
-
-**Markov Chain**
-the next state of the system, only depend on the current state, don't depend on other state it experienced before.
-
-**How Transiion Matrix work on PageRank Vector**
-
-
-```math
-\mathbf{1}^T(Px)=\mathbf{1}^Tx
-```
-
-
-#### Problem
-After correlation:
-
-```math
-
-S=
-\begin{bmatrix}
-0&0&0\\
-0.5&0&0\\
-0.5&1&0
-\end{bmatrix}
-
-```
-
-We imple ++Column-Stochastic Convention++(列随机约定):
-
-Col A : 0 + 0.5 + 0.5 = 1
-Col B : 0 + 0 + 1 = 1
-Col C : 0 + 0 + 0 = 0
-
-the sum of probability of Col c is 0, not 1, in Markov Chain, it means after reaching C, it doesn't define the next step.
-
-So S is not the Column Stochastic Matrix, is the Column-Substochastic Matrix
-
-#### Fix the Problem(fix the Dangling Node)
-
-Basic method: Using random rate to fill the column in matrix
-
-```math
-
-P=
-\begin{bmatrix}
-0&0&1/3\\
-1/2&0&1/3\\
-1/2&1&1/3
-\end{bmatrix}
-```
-
-But if the matrix has huge number of node, and contains lots of DanglingNodes, each column needs to fill no-zero probability.
-
-this will generate huge amount of extra elements of matrix
-
-According to the request: ++*without forming dense rank-one matrices*++
-
-定义Dangling Indicator Vector:
-
-d = [0 0 1]^T then: P = S + vd^T
-
-for any variant x : Px = Sx + v(d^t x)
-
-we need to realize:
-```math
-P=S+vd^T
-```
-but can't let it be dense matrix, so:
-
-```math
-{Px=Sx+v(d^Tx)}
-```
-#### Step to construct Sparse Transition Matrix, recognize Dangling Nodes
-
-**Step1**:Build Adjacent Matrix
-we can use COO matrix
-
-**Step2**:Calculate Out-degree
-
-(The sum of every column)
-```math
-d_j^{out}=\sum_{i=1}^{n}A_{ij}
-```
-
-**Step3**: Recognize Dangling Nodes
-
-```math
-d_j=
-\begin{cases}
-1 & d_j^{out}=0\\
-0 & d_j^{out}>0
+Under our convention:
+- Row $i$: Target node.
+- Column $j$: Source node.
+- $A_{ij}=1$ if there is a link from $j$ to $i$, and $0$ otherwise (for an unweighted graph).
+Step 2: Calculate Out-Degrees
+The out-degree is the sum of the entries in each column:
+\[
+\boxed{d_j^{\mathrm{out}}=\sum_{i=1}^{n}A_{ij}}.
+\]
+Step 3: Identify Dangling Nodes
+\[
+d_j=\begin{cases}
+1, & d_j^{\mathrm{out}}=0,\\
+0, & d_j^{\mathrm{out}}>0.
 \end{cases}
-```
-
-**Step4**:Normalize
-
-实现隐式Dangling Node Correction
-
-#### Verify sticgastucuty
-Column-Stochastic Marix必须满足L
-P_ij >= 0 and Σp_ij = 1
-
-because:
-
-```math
-P=S+vd^T
-```
-so:
-```math
-{\mathbf1^TP=\mathbf1^TS+(\mathbf1^Tv)d^T}
-```
-
-if v is alread normalized, then 1^t v = 1
-
-so we need to check column sum of S + d_j = 1
-
-**Implicit Dangling-Node Correction**
-
-## 1.Adjacency Matrix
-
-Row: Target
-Col : Source
-
-## 2.Out-degree
-
-
-```math
-\
-{q_j=\sum_i A_{ij}}
-\
-```
-
-## 3.Normalization
-
-Dangling Node don't have out-degree, so the column can't form the transform probability distribution
-
-## 4.Dangling Nodes
-
-we need to use the Personalization Vector(now is Uniform Personalization)
-to help Dangling Node have same probabilities to other nodes
-
-Personalization Vector must satisfy:
-
-
-```math
-\
-v_i\geq0,\qquad\sum_i v_i=1
-\
-```
-
-
-
-also we need Dangling Indicator Vector to know which node is Dangling Nodes.
-
-
-## 5. Dangling-Node Correction:
-
-```math
-\
-{P=S+vd^T}
-\
-```
-
-
-keep the columns of normal node,
-and use V to change the column of Dangling Node
-
-## 6. Implicit Implementation
-(Implicit Matrix-Vector Multiplication)
-
-
-```math
-\
-P=S+vd^T
-\
-```
-
-
-
-```math
-\
-Px=(S+vd^T)x
-\
-```
-
-
-
-```math
-\
-Px=Sx+(vd^T)x
-\
-```
-
-
-
-
-```math
-\
-{Px=Sx+v(d^Tx)}
-\
-```
-
-
-## 7.Column Stochasticity
-
-Column-Stochastic Matrix satisfy:
-
-
-```math
-\
-{P_{ij}\geq0}
-\
-```
-
-
-
-```math
-\
-{\sum_iP_{ij}=1\qquad\forall j}
-\
-```
-
-
-proof without construct P
-
-
-```math
-\
-\sum_iP_{ij}
-=
-\sum_iS_{ij}+d_j\sum_iv_i
-\
-```
-
-
-
-because:
-
-
-```math
-\
-\sum_iv_i=1
-\
-```
-
-
-so：
-
-```math
-\
-{\sum_iP_{ij}=\sum_iS_{ij}+d_j}
-\
-```
-
-
-As Normal Node:
-The column of S =1, dj = 0
-
-As Dangling Node:
-The column of S =0, dj = 1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+\]
+Step 4: Normalize Non-Dangling Columns
+For every node with $d_j^{\mathrm{out}}>0$, divide its column entries by its out-degree:
+\[
+S_{ij}=\begin{cases}
+\dfrac{A_{ij}}{d_j^{\mathrm{out}}}, & d_j^{\mathrm{out}}>0,\\
+0, & d_j^{\mathrm{out}}=0.
+\end{cases}
+\]
+Thus, non-dangling columns sum to 1, while dangling columns remain zero in $S$.
+Step 5: Choose a Personalization Vector
+The personalization vector $v$ must satisfy:
+\[
+v_i\ge 0,\qquad \sum_{i=1}^{n}v_i=1.
+\]
+For uniform personalization:
+\[
+v=\frac{1}{n}\mathbf{1}.
+\]
+Keep the normal columns unchanged and use $v$ to correct dangling columns:
+\[
+P=S+vd^T.
+\]
+Step 6: Implement the Correction Implicitly
+Instead of constructing $P$, perform each matrix-vector multiplication as:
+\[
+\boxed{Px=Sx+v(d^Tx)}.
+\]
+5. Verify Column Stochasticity Without Constructing $P$
+A column-stochastic matrix must satisfy:
+\[
+P_{ij}\ge 0, \qquad \sum_i P_{ij}=1\quad \text{for every }j.
+\]
+Since $P=S+vd^T$, we have:
+\[
+\begin{aligned}
+\sum_i P_{ij}
+&=\sum_i S_{ij}+d_j\sum_i v_i\\
+&=\sum_i S_{ij}+d_j,
+\end{aligned}
+\]
+because $\sum_i v_i=1$.
+
+Therefore, we can verify stochasticity without explicitly constructing $P$ by checking:
+\[
+\boxed{\sum_i S_{ij}+d_j=1\qquad\text{for every }j.}
+\]
+Two cases:
+- Normal node: $\sum_i S_{ij}=1$ and $d_j=0$, so the result is $1$.
+- Dangling node: $\sum_i S_{ij}=0$ and $d_j=1$, so the result is also $1$.
+Because $S\ge0$, $v\ge0$, and $d\ge0$, we also have $P\ge0$ entrywise.
+
+In vector notation, the same proof is:
+\[
+\mathbf{1}^{T}P
+=\mathbf{1}^{T}S+(\mathbf{1}^{T}v)d^{T}
+=\mathbf{1}^{T}S+d^{T}
+=\mathbf{1}^{T}.
+\]
+Conclusion: The implicit dangling-node correction produces a valid column-stochastic transition matrix while preserving sparse storage.
+Note: Dangling-node correction and the PageRank damping parameter $\alpha$ solve different problems. After building $P$, the full PageRank model commonly uses $G=\alpha P+(1-\alpha)v\mathbf{1}^T$, which can also be applied implicitly without constructing a dense matrix.
