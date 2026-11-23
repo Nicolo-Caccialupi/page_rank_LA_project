@@ -160,6 +160,103 @@ so we need to check column sum of S + d_j = 1
 
 **Implicit Dangling-Node Correction**
 
+## 1.Adjacency Matrix
+
+Row: Target
+Col : Source
+
+## 2.Out-degree
+
+\[
+{q_j=\sum_i A_{ij}}
+\]
+
+## 3.Normalization
+
+Dangling Node don't have out-degree, so the column can't form the transform probability distribution
+
+## 4.Dangling Nodes
+
+we need to use the Personalization Vector(now is Uniform Personalization)
+to help Dangling Node have same probabilities to other nodes
+
+Personalization Vector must satisfy:
+
+\[
+v_i\geq0,\qquad\sum_i v_i=1
+\]
+
+
+also we need Dangling Indicator Vector to know which node is Dangling Nodes.
+
+
+## 5. Dangling-Node Correction:
+
+\[
+{P=S+vd^T}
+\]
+
+keep the columns of normal node,
+and use V to change the column of Dangling Node
+
+## 6. Implicit Implementation
+(Implicit Matrix-Vector Multiplication)
+
+\[
+P=S+vd^T
+\]
+
+\[
+Px=(S+vd^T)x
+\]
+
+\[
+Px=Sx+(vd^T)x
+\]
+
+
+\[
+{Px=Sx+v(d^Tx)}
+\]
+
+## 7.Column Stochasticity
+
+Column-Stochastic Matrix satisfy:
+
+\[
+{P_{ij}\geq0}
+\]
+
+\[
+{\sum_iP_{ij}=1\qquad\forall j}
+\]
+
+proof without construct P
+
+\[
+\sum_iP_{ij}
+=
+\sum_iS_{ij}+d_j\sum_iv_i
+\]
+
+
+because:
+
+\[
+\sum_iv_i=1
+\]
+
+so：
+\[
+\boxed{\sum_iP_{ij}=\sum_iS_{ij}+d_j}
+\]
+
+As Normal Node:
+The column of S =1, dj = 0
+
+As Dangling Node:
+The column of S =0, dj = 1
+
 
 
 
