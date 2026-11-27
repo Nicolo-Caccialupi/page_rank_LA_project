@@ -1,5 +1,6 @@
 # # Preprocessing Data
-
+import kagglehub
+from kagglehub import KaggleDatasetAdapter
 import pandas as pd
 import numpy as np
 from scipy import sparse
@@ -8,7 +9,8 @@ from pathlib import Path
 
 # ## Load Data
 
-data_dir = Path("raw_data") # This document contains all two raw csv data
+data_dir = Path("raw_data")
+data_dir.mkdir(parents=True, exist_ok=True) # This document contains all two raw csv data
 
 pages_path = data_dir / "pages_export.csv"
 links_path = data_dir / "links_export.csv"
@@ -17,8 +19,29 @@ print(pages_path.exists())
 print(links_path.exists())
 
 # Read first 5 rows because row data is very huge
-pages = pd.read_csv(pages_path, nrows=5)
-links = pd.read_csv(links_path, nrows=5)
+
+if pages_path.exists():
+    pages = pd.read_csv(pages_path, nrows=5)
+else:
+    pages = kagglehub.load_dataset(
+            KaggleDatasetAdapter.PANDAS,
+            "kutayahin/wikipedia-link-graph-100k",
+            "pages_export.csv"
+            )
+    pages.to_csv(pages_path, index=False)
+
+
+if links_path.exists():
+    links = pd.read_csv(links_path, nrows=5)
+else:
+    links = kagglehub.load_dataset(
+            KaggleDatasetAdapter.PANDAS,
+            "kutayahin/wikipedia-link-graph-100k",
+            "links_export.csv"
+            )
+    links.to_csv(links_path, index=False)
+
+
 print("pages:")
 print(pages)
 

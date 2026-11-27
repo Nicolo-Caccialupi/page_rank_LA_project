@@ -1,2 +1,4 @@
 .vscode/settings.json
 M2_Test.ipynb
+raw_data
+*.npz
