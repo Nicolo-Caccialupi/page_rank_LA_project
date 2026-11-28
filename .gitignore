@@ -2,3 +2,4 @@
 M2_Test.ipynb
 raw_data
 *.npz
+__pycache__
